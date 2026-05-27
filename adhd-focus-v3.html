@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f0f0f">
+<title>Focus — ADHD Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;
+  --border:rgba(255,255,255,0.07);--border-strong:rgba(255,255,255,0.16);
+  --text:#f0ede8;--text-muted:rgba(240,237,232,0.45);--text-dim:rgba(240,237,232,0.22);
+  --accent:#c8f060;--accent-dim:rgba(200,240,96,0.1);--accent-muted:rgba(200,240,96,0.35);
+  --danger:#ff6b6b;--warm:#f0a060;--blue:#60c8f0;--purple:#c060f0;--gold:#f0d060;--teal:#60f0d0;
+  --radius:16px;--radius-sm:10px;
+  --fd:'Syne',sans-serif;--fm:'DM Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--fd);-webkit-font-smoothing:antialiased;overflow:hidden}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden}
+.screen.active{display:flex}
+button{font-family:var(--fd);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+
+/* CHECKIN */
+#screen-checkin{justify-content:center;align-items:center;padding:2rem;gap:1.4rem}
+.checkin-title{font-size:clamp(1rem,3vw,1.3rem);font-weight:500;color:var(--text-muted);text-align:center}
+.state-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:420px}
+.state-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:all .18s}
+.state-btn:active{transform:scale(.96)}
+.state-btn .emoji{font-size:1.8rem}
+.state-btn .label{font-size:.72rem;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase}
+.state-btn.overwhelmed:hover{border-color:var(--danger);background:rgba(255,107,107,.08)}
+.state-btn.okay:hover{border-color:var(--warm);background:rgba(240,160,96,.08)}
+.state-btn.focused:hover{border-color:var(--accent);background:var(--accent-dim)}
+.state-btn.wired:hover{border-color:var(--blue);background:rgba(96,200,240,.08)}
+.hf-entry{width:100%;max-width:420px;border:1px solid rgba(192,96,240,.28);border-radius:var(--radius);padding:.95rem 1.2rem;cursor:pointer;display:flex;align-items:center;gap:12px;background:rgba(192,96,240,.05);transition:all .18s}
+.hf-entry:hover{border-color:rgba(192,96,240,.55)}
+.hf-etitle{font-size:.88rem;font-weight:700;color:var(--purple)}
+.hf-esub{font-size:.66rem;color:var(--text-muted);margin-top:2px;font-family:var(--fm)}
+
+/* MAIN */
+#screen-main{padding:0;overflow:hidden}
+.main-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.4rem .4rem;flex-shrink:0}
+.header-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.state-pill{font-family:var(--fm);font-size:.66rem;letter-spacing:.08em;padding:4px 10px;border-radius:99px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface);cursor:pointer;transition:all .15s}
+.state-pill:hover{border-color:var(--border-strong);color:var(--text)}
+.hf-pill{font-family:var(--fm);font-size:.62rem;padding:4px 9px;border-radius:99px;border:1px solid rgba(192,96,240,.38);color:var(--purple);background:rgba(192,96,240,.08);cursor:pointer;transition:all .15s}
+.hf-pill:hover{border-color:rgba(192,96,240,.65)}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;padding:6px;transition:color .15s;line-height:1}
+.icon-btn:hover{color:var(--text)}
+
+.main-body{flex:1;display:flex;overflow:hidden}
+.left-col{flex:1;overflow-y:auto;overflow-x:hidden;padding:.4rem 1.4rem 2rem;-webkit-overflow-scrolling:touch}
+.right-col{display:none}
+@media(min-width:768px){
+  .left-col{flex:0 0 430px;border-right:1px solid var(--border);padding:.6rem 1.6rem 2rem}
+  .right-col{display:flex;flex-direction:column;flex:1;overflow:hidden;padding:.6rem 1.6rem 2rem}
+  .right-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+}
+@media(min-width:1100px){.left-col{flex:0 0 500px}}
+
+/* AMBIENT TIMER */
+.ambient-timer-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.6rem 1.4rem 1.2rem;margin-bottom:.9rem;transition:border-color .4s;display:flex;flex-direction:column;align-items:center;gap:1rem}
+.ambient-timer-card.active{border-color:var(--accent-muted)}
+.vessel-wrap{position:relative;width:200px;height:200px}
+.vessel-svg{width:200px;height:200px}
+.pulse-ring{fill:none;stroke:rgba(200,240,96,0.05);stroke-width:20;animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{0%,100%{stroke-width:16;stroke:rgba(200,240,96,0.04)}50%{stroke-width:24;stroke:rgba(200,240,96,0.09)}}
+.vessel-track{fill:none;stroke:var(--surface2);stroke-width:18}
+.vessel-fill{fill:none;stroke-width:18;stroke-linecap:butt;transition:stroke-dashoffset 1s linear,stroke 6s ease}
+.vessel-centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.vessel-status{font-family:var(--fm);font-size:.58rem;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase}
+.vessel-time{font-family:var(--fm);font-size:.76rem;color:var(--text-dim);font-variant-numeric:tabular-nums;cursor:pointer;transition:color .2s}
+.vessel-time:hover{color:var(--text-muted)}
+.vessel-time.shown{color:var(--accent);font-size:.9rem}
+.ambient-task-name{font-size:clamp(.95rem,3vw,1.15rem);font-weight:700;color:var(--text);text-align:center;line-height:1.3;word-break:break-word;width:100%}
+.ambient-task-name.empty{color:var(--text-dim);font-weight:400;font-style:italic}
+.ambient-micro{font-size:.74rem;color:var(--accent);font-family:var(--fm);font-weight:300;text-align:center;margin-top:3px;line-height:1.4}
+.ambient-hint{font-family:var(--fm);font-size:.6rem;color:var(--text-dim);text-align:center;margin-top:2px}
+.ambient-actions{display:flex;gap:8px;width:100%}
+.too-big-btn{font-family:var(--fm);font-size:.6rem;color:var(--text-dim);background:none;border:none;cursor:pointer;padding:2px 0;display:inline-block;transition:color .15s}
+.too-big-btn:hover{color:var(--warm)}
+.boring-btn{font-family:var(--fm);font-size:.6rem;color:var(--warm);background:none;border:none;cursor:pointer;padding:2px 0;display:inline-block;transition:opacity .15s}
+.boring-btn:hover{opacity:.7}
+
+/* Compact card (phone) */
+.compact-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:.9rem;transition:border-color .3s}
+.compact-card.active{border-color:var(--accent-muted)}
+.compact-top{padding:.85rem 1rem .45rem;display:flex;align-items:flex-start;gap:10px}
+.ring-wrap{flex-shrink:0;position:relative;width:52px;height:52px}
+.ring-wrap svg{width:52px;height:52px;transform:rotate(-90deg)}
+.ring-track{fill:none;stroke:var(--surface2);stroke-width:5}
+.ring-fill{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .3s}
+.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:.65rem;font-weight:500;color:var(--accent)}
+.compact-info{flex:1;min-width:0}
+.sect-label{font-family:var(--fm);font-size:.56rem;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:3px}
+.compact-name{font-size:clamp(.9rem,4vw,1.1rem);font-weight:700;line-height:1.25;color:var(--text);word-break:break-word}
+.compact-name.empty{color:var(--text-dim);font-weight:400;font-style:italic}
+.compact-micro{margin-top:4px;font-size:.73rem;color:var(--accent);font-family:var(--fm);font-weight:300;line-height:1.4}
+.compact-hint{font-family:var(--fm);font-size:.6rem;color:var(--text-dim);margin-top:2px}
+.compact-actions{display:flex;gap:7px;padding:.4rem 1rem .85rem}
+
+/* Buttons */
+.btn-start{flex:1;background:var(--accent);color:#0f0f0f;border:none;border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .18s}
+.btn-start:hover{background:#d4f070;transform:translateY(-1px)}
+.btn-start:active{transform:scale(.97)}
+.btn-start:disabled{background:var(--surface2);color:var(--text-dim);transform:none;cursor:default}
+.btn-done{background:rgba(200,240,96,.12);color:var(--accent);border:1px solid var(--accent-muted);border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .18s}
+.btn-done:hover{background:rgba(200,240,96,.22)}
+.btn-ghost{background:none;color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.75rem .88rem;font-size:.82rem;font-weight:500;cursor:pointer;transition:all .18s;white-space:nowrap}
+.btn-ghost:hover{border-color:var(--border-strong);color:var(--text)}
+
+/* Science info */
+.info-btn{background:none;border:none;cursor:pointer;font-size:.63rem;color:var(--text-dim);font-family:var(--fm);padding:1px 4px;border-radius:3px;transition:color .15s;vertical-align:middle}
+.info-btn:hover{color:var(--blue)}
+.science-card{background:rgba(96,200,240,0.05);border:1px solid rgba(96,200,240,0.16);border-radius:var(--radius-sm);padding:.72rem .95rem;margin-top:6px;display:none}
+.science-card.open{display:block}
+.science-card-title{font-family:var(--fm);font-size:.56rem;letter-spacing:.1em;color:var(--blue);text-transform:uppercase;margin-bottom:5px}
+.science-card-text{font-size:.76rem;color:var(--text-muted);line-height:1.62}
+
+/* Boring badge */
+.boring-badge{display:inline-block;font-family:var(--fm);font-size:.56rem;padding:2px 6px;border-radius:99px;border:1px solid rgba(240,160,96,.3);color:var(--warm);background:rgba(240,160,96,.07);margin-left:5px;vertical-align:middle}
+
+/* Body check */
+.body-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.62rem 1rem;display:flex;align-items:center;gap:9px;margin-bottom:.75rem}
+.body-bar.hidden{display:none}
+.body-bar-text{flex:1;font-size:.78rem;color:var(--text-muted)}
+.body-bar-dismiss{font-family:var(--fm);font-size:.62rem;color:var(--text-dim);background:none;border:none;cursor:pointer;padding:3px 7px;border-radius:4px;transition:color .15s}
+.body-bar-dismiss:hover{color:var(--text-muted)}
+
+/* Regulation */
+.reg-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;width:100%;max-width:360px}
+.reg-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.8rem .6rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all .15s}
+.reg-btn:hover{border-color:var(--border-strong)}
+.reg-btn .reg-icon{font-size:1.4rem}
+.reg-btn .reg-label{font-size:.66rem;color:var(--text-muted);font-family:var(--fm);text-align:center;line-height:1.3}
+#screen-overwhelmed{justify-content:center;align-items:center;padding:1.8rem;gap:.95rem;text-align:center;overflow-y:auto}
+.overwhelmed-label{font-family:var(--fm);font-size:.62rem;letter-spacing:.12em;color:var(--danger);text-transform:uppercase}
+.overwhelmed-q{font-size:clamp(.95rem,4vw,1.3rem);font-weight:700;line-height:1.3;color:var(--text);max-width:340px}
+.breath-ring{width:106px;height:106px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.breath-ring-inner{width:72px;height:72px;border-radius:50%;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.22);display:flex;align-items:center;justify-content:center;font-size:.74rem;color:var(--danger);font-family:var(--fm);transition:all 4s ease}
+.breath-ring-inner.expanding{width:102px;height:102px;background:rgba(255,107,107,.16)}
+.overwhelmed-divider{font-family:var(--fm);font-size:.56rem;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;margin-top:.2rem}
+.overwhelmed-options{display:flex;flex-direction:column;gap:6px;width:100%;max-width:340px}
+.overwhelmed-opt{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.78rem 1rem;font-size:.84rem;color:var(--text-muted);cursor:pointer;transition:all .15s;text-align:left}
+.overwhelmed-opt:hover{border-color:var(--border-strong);color:var(--text)}
+
+/* Reg overlay */
+#reg-overlay{display:none;position:fixed;inset:0;z-index:90;background:rgba(15,15,15,.95);flex-direction:column;align-items:center;justify-content:center;gap:1.1rem;padding:2rem;text-align:center}
+#reg-overlay.visible{display:flex}
+.reg-ex-title{font-size:1.1rem;font-weight:700}
+.reg-ex-desc{font-size:.82rem;color:var(--text-muted);max-width:300px;line-height:1.6}
+.reg-ex-phase{font-size:clamp(1.1rem,5vw,1.7rem);font-weight:800;color:var(--accent);font-family:var(--fm);min-height:1.9rem}
+.reg-ex-count{font-size:clamp(3rem,14vw,6rem);font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;line-height:1}
+.reg-close{background:none;border:1px solid var(--border);border-radius:99px;padding:8px 20px;color:var(--text-muted);font-family:var(--fm);font-size:.7rem;cursor:pointer;margin-top:.5rem;transition:all .15s}
+.reg-close:hover{border-color:var(--border-strong);color:var(--text)}
+
+/* Tasks */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;margin-top:.4rem}
+.section-header-label{font-family:var(--fm);font-size:.56rem;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase}
+.add-task-btn{font-family:var(--fm);font-size:.65rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:3px 5px;transition:opacity .15s}
+.add-task-btn:hover{opacity:.7}
+.task-list{display:flex;flex-direction:column;gap:5px}
+.task-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.62rem 1rem;display:flex;align-items:center;gap:9px;cursor:pointer;transition:all .15s;opacity:.48}
+.task-item:hover{opacity:1;border-color:var(--border-strong)}
+.task-item.is-current{opacity:1;border-color:var(--accent-muted);background:var(--accent-dim)}
+.task-item.is-boring{border-left:3px solid rgba(240,160,96,.45)}
+.task-radio{width:17px;height:17px;border-radius:50%;border:1.5px solid var(--border-strong);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.task-item.is-current .task-radio{border-color:var(--accent)}
+.task-item.is-current .task-radio::after{content:'';width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.task-item-name{flex:1;font-size:.83rem;color:var(--text-muted)}
+.task-item.is-current .task-item-name{color:var(--text);font-weight:500}
+.task-actions-inline{display:flex;gap:3px;opacity:0;transition:opacity .15s}
+.task-item:hover .task-actions-inline,.task-item.is-current .task-actions-inline{opacity:1}
+.task-action-tiny{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.75rem;padding:3px 6px;border-radius:4px;transition:color .15s}
+.task-action-tiny.done-tiny:hover{color:var(--accent)}
+.task-action-tiny.del-tiny:hover{color:var(--danger)}
+.empty-state{text-align:center;padding:2rem 1rem;color:var(--text-dim);font-size:.8rem;font-family:var(--fm);line-height:1.7}
+
+/* Log */
+.log-section{margin-top:1rem}
+.log-item{display:flex;align-items:center;gap:8px;padding:.35rem 0;border-bottom:1px solid var(--border)}
+.log-check{color:var(--accent);font-size:.72rem}
+.log-name{font-size:.78rem;color:var(--text-muted);flex:1}
+.log-time{font-family:var(--fm);font-size:.6rem;color:var(--text-dim)}
+
+/* Energy log */
+.energy-row{display:flex;gap:6px;width:100%;margin-top:.4rem}
+.energy-btn{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.55rem .3rem;cursor:pointer;font-size:.75rem;color:var(--text-muted);transition:all .15s;text-align:center}
+.energy-btn:hover{border-color:var(--border-strong);color:var(--text)}
+.energy-btn.sel-up{border-color:var(--accent-muted);color:var(--accent);background:var(--accent-dim)}
+.energy-btn.sel-same{border-color:rgba(240,160,96,.4);color:var(--warm);background:rgba(240,160,96,.08)}
+.energy-btn.sel-down{border-color:rgba(255,107,107,.35);color:var(--danger);background:rgba(255,107,107,.07)}
+
+/* Countdown */
+#countdown-overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(15,15,15,.96);flex-direction:column;align-items:center;justify-content:center;gap:.9rem}
+#countdown-overlay.visible{display:flex}
+.cd-task{font-size:clamp(.8rem,2.5vw,.94rem);color:var(--text-muted);font-family:var(--fm);text-align:center;padding:0 2rem;max-width:400px}
+.cd-micro{font-size:clamp(.68rem,2vw,.78rem);color:var(--accent);font-family:var(--fm);font-weight:300;text-align:center;padding:0 2rem;max-width:380px}
+.cd-pairing{font-size:clamp(.66rem,2vw,.76rem);color:var(--warm);font-family:var(--fm);text-align:center;padding:0 2rem;max-width:360px}
+.cd-number{font-size:clamp(5rem,20vw,9rem);font-weight:800;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.cd-number.pulse{animation:pulse-num .3s ease}
+@keyframes pulse-num{0%{transform:scale(1.15)}100%{transform:scale(1)}}
+.cd-cancel{margin-top:.8rem;background:none;border:1px solid var(--border);border-radius:99px;padding:8px 20px;color:var(--text-muted);font-family:var(--fm);font-size:.7rem;cursor:pointer;transition:all .15s}
+.cd-cancel:hover{border-color:var(--border-strong);color:var(--text)}
+
+/* Hyperfocus */
+#screen-hyperfocus{padding:0;overflow:hidden}
+.hf-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.4rem .5rem;flex-shrink:0;border-bottom:1px solid var(--border)}
+.hf-title-bar{font-size:.8rem;font-weight:700;color:var(--purple);font-family:var(--fm);letter-spacing:.04em}
+.hf-scroll{flex:1;overflow-y:auto;padding:1rem 1.4rem 2rem}
+.hf-phase{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;margin-bottom:10px}
+.hf-phase-num{font-family:var(--fm);font-size:.56rem;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;margin-bottom:3px}
+.hf-phase-title{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:5px}
+.hf-phase-desc{font-size:.76rem;color:var(--text-muted);line-height:1.55;margin-bottom:10px}
+.hf-input{background:var(--bg);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:.7rem .9rem;font-family:var(--fd);font-size:.88rem;color:var(--text);width:100%;outline:none;transition:border-color .15s;-webkit-appearance:none;margin-bottom:8px}
+.hf-input:focus{border-color:rgba(192,96,240,.5)}
+.hf-input::placeholder{color:var(--text-dim)}
+.hf-checklist{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.hf-check-item{display:flex;align-items:center;gap:10px;cursor:pointer;padding:3px 0}
+.hf-check-box{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border-strong);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.hf-check-item.checked .hf-check-box{background:var(--accent);border-color:var(--accent);color:#0f0f0f;font-size:.7rem}
+.hf-check-item.checked .hf-check-box::after{content:'✓'}
+.hf-check-label{font-size:.84rem;color:var(--text-muted);transition:color .15s}
+.hf-check-item.checked .hf-check-label{color:var(--text-dim);text-decoration:line-through}
+.hf-sound-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hf-sound-label{font-size:.8rem;color:var(--text-muted)}
+.hf-btn{width:100%;background:rgba(192,96,240,.1);color:var(--purple);border:1px solid rgba(192,96,240,.28);border-radius:var(--radius-sm);padding:.72rem;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .18s}
+.hf-btn:hover{background:rgba(192,96,240,.2)}
+.hf-btn.go{background:var(--purple);color:#fff;border-color:var(--purple)}
+.hf-btn.go:hover{opacity:.88}
+.hf-btn:disabled{opacity:.4;cursor:default}
+.hf-lock-timer{text-align:center;padding:.85rem 0}
+.hf-lock-number{font-size:2.5rem;font-weight:800;color:var(--purple);font-family:var(--fm);font-variant-numeric:tabular-nums}
+.hf-lock-label{font-size:.63rem;color:var(--text-dim);font-family:var(--fm);margin-top:3px}
+.hf-lock-bar{height:3px;background:var(--surface2);border-radius:2px;margin-top:10px;overflow:hidden}
+.hf-lock-fill{height:100%;background:var(--purple);border-radius:2px;transition:width 1s linear}
+.hf-btn-row{display:flex;gap:8px;margin-top:8px}
+
+/* Return */
+#screen-return{justify-content:center;align-items:center;padding:2rem;gap:1.5rem;text-align:center}
+.return-title{font-size:clamp(1.3rem,4vw,1.9rem);font-weight:800}
+.return-sub{font-size:.88rem;color:var(--text-muted);max-width:300px;line-height:1.55}
+.return-task-name{font-size:clamp(.88rem,3vw,1.05rem);font-weight:600;color:var(--accent);font-family:var(--fm);max-width:340px}
+
+/* Reward flash */
+#reward-flash{display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:.5rem;pointer-events:none}
+#reward-flash.visible{display:flex}
+.rf-bg{position:absolute;inset:0}
+.rf-rays{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.rf-ray{position:absolute;top:50%;left:50%;width:2px;height:45%;background:rgba(255,255,255,.3);transform-origin:bottom center;animation:ray-spin 1s linear infinite}
+@keyframes ray-spin{0%{opacity:.6}50%{opacity:.1}100%{opacity:.6}}
+.rf-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:.4rem}
+.rf-icon{font-size:3.8rem;line-height:1;animation:rf-pop .4s cubic-bezier(.34,1.56,.64,1)}
+.rf-text{font-size:1.45rem;font-weight:800;animation:rf-pop .4s cubic-bezier(.34,1.56,.64,1)}
+.rf-flavor{font-family:var(--fm);font-size:.86rem;text-align:center;padding:0 2rem;animation:rf-fade .4s .1s both}
+.rf-sub{font-family:var(--fm);font-size:.7rem}
+@keyframes rf-pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes rf-fade{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}
+
+/* Modals */
+.modal-backdrop{display:none;position:fixed;inset:0;z-index:50;background:rgba(15,15,15,.87);align-items:flex-end;justify-content:center;padding:1.2rem}
+.modal-backdrop.visible{display:flex}
+.modal-sheet{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);padding:1.35rem;width:100%;max-width:520px;display:flex;flex-direction:column;gap:11px;animation:slide-up .2s ease}
+@keyframes slide-up{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-size:.94rem;font-weight:700}
+.modal-input{background:var(--bg);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:.76rem .92rem;font-family:var(--fd);font-size:.9rem;color:var(--text);width:100%;outline:none;transition:border-color .15s;-webkit-appearance:none}
+.modal-input:focus{border-color:var(--accent-muted)}
+.modal-input::placeholder{color:var(--text-dim)}
+.modal-sub-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.62rem .86rem;font-family:var(--fd);font-size:.86rem;color:var(--text);width:100%;outline:none;transition:border-color .15s;-webkit-appearance:none}
+.modal-sub-input:focus{border-color:var(--warm)}
+.modal-sub-input::placeholder{color:var(--text-dim)}
+.micro-label{font-family:var(--fm);font-size:.6rem;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.modal-row{display:flex;gap:8px}
+.modal-btn-add{flex:1;background:var(--accent);color:#0f0f0f;border:none;border-radius:var(--radius-sm);padding:.73rem;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s}
+.modal-btn-add:hover{background:#d4f070}
+.modal-btn-warn{flex:1;background:var(--warm);color:#0f0f0f;border:none;border-radius:var(--radius-sm);padding:.73rem;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s}
+.modal-btn-warn:hover{opacity:.88}
+.modal-btn-cancel{background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:.73rem 1rem;color:var(--text-muted);font-size:.9rem;cursor:pointer;transition:all .15s}
+.modal-btn-cancel:hover{border-color:var(--border-strong);color:var(--text)}
+.boring-toggle-row{display:flex;align-items:center;justify-content:space-between;background:rgba(240,160,96,.06);border:1px solid rgba(240,160,96,.18);border-radius:var(--radius-sm);padding:.65rem .9rem}
+.boring-toggle-label{font-size:.84rem;color:var(--warm)}
+.toggle-switch{position:relative;width:38px;height:22px;flex-shrink:0}
+.toggle-switch input{display:none}
+.toggle-slider{position:absolute;inset:0;background:var(--surface2);border-radius:99px;cursor:pointer;transition:.2s}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:var(--text-dim);border-radius:50%;transition:.2s}
+.toggle-switch input:checked~.toggle-slider{background:rgba(240,160,96,.55)}
+.toggle-switch input:checked~.toggle-slider::before{transform:translateX(16px);background:var(--warm)}
+
+/* Settings */
+#screen-settings{overflow:hidden}
+.settings-header{display:flex;align-items:center;gap:12px;padding:.85rem 1.4rem .45rem;flex-shrink:0}
+.settings-back{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.05rem;transition:color .15s;padding:5px}
+.settings-back:hover{color:var(--text)}
+.settings-title{font-size:.98rem;font-weight:700}
+.settings-scroll{flex:1;overflow-y:auto;padding:.4rem 1.4rem 2rem;max-width:640px}
+.settings-sect{font-family:var(--fm);font-size:.56rem;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase;margin:1.2rem 0 .45rem}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:.72rem 0;border-bottom:1px solid var(--border)}
+.settings-row-label{font-size:.86rem;color:var(--text-muted)}
+.settings-row select,.settings-row input[type=number]{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 9px;color:var(--text);font-family:var(--fm);font-size:.76rem;outline:none;-webkit-appearance:none}
+.settings-row input[type=number]{width:58px;text-align:center}
+.danger-btn{background:none;border:1px solid rgba(255,107,107,.28);border-radius:var(--radius-sm);padding:10px 16px;color:var(--danger);font-size:.84rem;cursor:pointer;transition:all .15s;margin-top:1.5rem;width:100%}
+.danger-btn:hover{background:rgba(255,107,107,.07)}
+
+/* About */
+#screen-about{overflow:hidden}
+.about-header{display:flex;align-items:center;gap:12px;padding:.85rem 1.4rem .45rem;flex-shrink:0}
+.about-scroll{flex:1;overflow-y:auto;padding:.5rem 1.4rem 3rem;max-width:680px}
+.about-logo{font-size:2rem;margin-bottom:.4rem}
+.about-title{font-size:1.4rem;font-weight:800;margin-bottom:.3rem}
+.about-proto{display:inline-block;font-family:var(--fm);font-size:.62rem;padding:3px 9px;border-radius:99px;border:1px solid rgba(200,240,96,.35);color:var(--accent);background:rgba(200,240,96,.08);margin-bottom:1.2rem}
+.about-section{margin-bottom:1.6rem}
+.about-section-title{font-family:var(--fm);font-size:.58rem;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:.7rem}
+.about-p{font-size:.86rem;color:var(--text-muted);line-height:1.7;margin-bottom:.75rem}
+.about-feature{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.88rem 1rem;margin-bottom:8px}
+.about-feature-title{font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:7px}
+.about-feature-body{font-size:.77rem;color:var(--text-muted);line-height:1.62}
+.about-science-note{font-size:.7rem;color:rgba(96,200,240,.65);font-family:var(--fm);margin-top:5px;font-style:italic;line-height:1.5}
+.about-feedback{background:rgba(200,240,96,.06);border:1px solid rgba(200,240,96,.18);border-radius:var(--radius);padding:1.1rem 1.2rem;margin-top:1rem}
+.about-feedback-title{font-size:.88rem;font-weight:700;color:var(--accent);margin-bottom:.5rem}
+.about-feedback-body{font-size:.82rem;color:var(--text-muted);line-height:1.65}
+.about-email{color:var(--accent);text-decoration:none;font-weight:600;word-break:break-all}
+.about-email:hover{opacity:.8}
+.about-disclaimer{font-size:.7rem;color:var(--text-dim);line-height:1.6;margin-top:1rem;font-family:var(--fm)}
+
+/* Scrollbars */
+.left-col::-webkit-scrollbar,.right-scroll::-webkit-scrollbar,.hf-scroll::-webkit-scrollbar,.settings-scroll::-webkit-scrollbar,.about-scroll::-webkit-scrollbar{width:3px}
+.left-col::-webkit-scrollbar-track,.right-scroll::-webkit-scrollbar-track,.hf-scroll::-webkit-scrollbar-track,.settings-scroll::-webkit-scrollbar-track,.about-scroll::-webkit-scrollbar-track{background:transparent}
+.left-col::-webkit-scrollbar-thumb,.right-scroll::-webkit-scrollbar-thumb,.hf-scroll::-webkit-scrollbar-thumb,.settings-scroll::-webkit-scrollbar-thumb,.about-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+#toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1px solid var(--border-strong);border-radius:99px;padding:8px 18px;font-family:var(--fm);font-size:.73rem;color:var(--text-muted);opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:300}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- CHECK-IN -->
+<div id="screen-checkin" class="screen active">
+  <div class="checkin-title">How are you right now?</div>
+  <div class="state-grid">
+    <button class="state-btn overwhelmed" onclick="setStateAndGo('overwhelmed')"><span class="emoji">😵</span><span class="label">Overwhelmed</span></button>
+    <button class="state-btn okay" onclick="setStateAndGo('okay')"><span class="emoji">😐</span><span class="label">Okay</span></button>
+    <button class="state-btn focused" onclick="setStateAndGo('focused')"><span class="emoji">⚡</span><span class="label">Focused</span></button>
+    <button class="state-btn wired" onclick="setStateAndGo('wired')"><span class="emoji">🌀</span><span class="label">Scattered</span></button>
+  </div>
+  <button class="hf-entry" onclick="startHyperfocusFlow()">
+    <span style="font-size:1.5rem">🧠</span>
+    <span><div class="hf-etitle">Hyperfocus Mode</div><div class="hf-esub">deep work · 90 min · curiosity-first</div></span>
+    <span style="color:var(--purple);margin-left:auto">→</span>
+  </button>
+</div>
+
+<!-- OVERWHELMED -->
+<div id="screen-overwhelmed" class="screen">
+  <div class="overwhelmed-label">Overwhelmed mode</div>
+  <div class="overwhelmed-q">What's the tiniest thing you could do right now?</div>
+  <div class="breath-ring" onclick="toggleBreath()"><div class="breath-ring-inner" id="breath-inner">breathe</div></div>
+  <div style="font-size:.7rem;color:var(--text-dim);font-family:var(--fm)">tap to guide breath</div>
+  <div class="overwhelmed-divider">regulate first</div>
+  <div class="reg-grid">
+    <button class="reg-btn" onclick="startRegEx('box')"><span class="reg-icon">🟦</span><span class="reg-label">Box breathing</span></button>
+    <button class="reg-btn" onclick="startRegEx('sigh')"><span class="reg-icon">💨</span><span class="reg-label">Physiological sigh</span></button>
+    <button class="reg-btn" onclick="startRegEx('cold')"><span class="reg-icon">💧</span><span class="reg-label">Cold water</span></button>
+  </div>
+  <div class="overwhelmed-divider">then choose</div>
+  <div class="overwhelmed-options">
+    <button class="overwhelmed-opt" onclick="overwhelmedAction('one')">Show me just one task</button>
+    <button class="overwhelmed-opt" onclick="overwhelmedAction('tiny')">Help me pick the tiniest step</button>
+    <button class="overwhelmed-opt" onclick="overwhelmedAction('break')">I need a break — 5 min timer</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="screen-main" class="screen">
+  <div class="main-header">
+    <div class="header-left">
+      <button class="state-pill" onclick="showScreen('checkin')" id="state-pill-label">⚡ focused</button>
+      <button class="hf-pill" onclick="startHyperfocusFlow()">🧠 deep</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button class="icon-btn" onclick="showScreen('about')" aria-label="About">ⓘ</button>
+      <button class="icon-btn" onclick="showScreen('settings')" aria-label="Settings">⚙</button>
+    </div>
+  </div>
+  <div class="main-body">
+    <div class="left-col" id="left-col">
+      <div class="body-bar hidden" id="body-check-bar">
+        <span>💧</span>
+        <span class="body-bar-text">Quick scan — water? food? stretch?</span>
+        <button class="body-bar-dismiss" onclick="dismissBodyCheck(event)">done</button>
+      </div>
+
+      <!-- iPad: ambient timer -->
+      <div class="ambient-timer-card ipad-only" id="ambient-card" style="display:none">
+        <div class="vessel-wrap">
+          <svg class="vessel-svg" viewBox="0 0 200 200">
+            <circle class="pulse-ring" cx="100" cy="100" r="82"/>
+            <circle class="vessel-track" cx="100" cy="100" r="78" transform="rotate(-90 100 100)"/>
+            <circle class="vessel-fill" id="big-vessel-fill" cx="100" cy="100" r="78"
+              stroke-dasharray="490.1" stroke-dashoffset="490.1" transform="rotate(-90 100 100)" stroke="var(--accent)"/>
+          </svg>
+          <div class="vessel-centre">
+            <div class="vessel-status" id="big-vessel-status">ready</div>
+            <div class="vessel-time" id="big-vessel-time" onclick="toggleTimeDisplay()" title="Tap to show/hide time">--:--</div>
+          </div>
+        </div>
+        <div style="text-align:center;width:100%">
+          <div class="sect-label" style="text-align:center">The one thing</div>
+          <div class="ambient-task-name" id="big-task-name">Add a task to begin</div>
+          <div class="ambient-micro" id="big-micro"></div>
+          <div class="ambient-hint" id="big-hint"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-top:5px">
+            <button class="too-big-btn" id="big-too-big-btn" onclick="openDecompose()" style="display:none">⟡ too big?</button>
+            <button class="boring-btn" id="big-boring-btn" onclick="openBoringModal()" style="display:none">☕ boring task?</button>
+          </div>
+          <button class="info-btn" onclick="toggleScience('sc-onetask')" style="margin-top:5px">ⓘ why one thing?</button>
+          <div class="science-card" id="sc-onetask">
+            <div class="science-card-title">The salience filter</div>
+            <div class="science-card-text">ADHD involves reduced dopaminergic signalling in the prefrontal cortex, which disrupts the brain's ability to assign priority — everything feels equally urgent or equally unimportant. Artificially elevating one item to visual dominance mimics what a healthy PFC does automatically, reducing the cognitive cost of deciding where to direct attention. (Barkley, 1997; Castellanos & Proal, 2012)</div>
+          </div>
+        </div>
+        <div class="ambient-actions">
+          <button class="btn-start" id="big-btn-start" onclick="initiateStart()" disabled style="flex:1">No task selected</button>
+          <button class="btn-done" id="big-btn-done" onclick="completeTask()" style="display:none;flex:1">Done ✓</button>
+        </div>
+        <div id="big-energy-log" style="display:none;width:100%">
+          <div class="sect-label" style="text-align:center;margin-bottom:6px">How was your energy this session?</div>
+          <div class="energy-row">
+            <button class="energy-btn" onclick="logEnergy('up')">↑ Higher</button>
+            <button class="energy-btn" onclick="logEnergy('same')">→ Same</button>
+            <button class="energy-btn" onclick="logEnergy('down')">↓ Lower</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phone: compact card -->
+      <div class="compact-card phone-only" id="compact-card">
+        <div class="compact-top">
+          <div class="ring-wrap">
+            <svg viewBox="0 0 52 52" style="transform:rotate(-90deg)">
+              <circle class="ring-track" cx="26" cy="26" r="21"/>
+              <circle class="ring-fill" id="small-ring-fill" cx="26" cy="26" r="21" stroke-dasharray="131.9" stroke-dashoffset="131.9"/>
+            </svg>
+            <div class="ring-label" id="small-ring-label">--</div>
+          </div>
+          <div class="compact-info">
+            <div class="sect-label">The one thing</div>
+            <div class="compact-name" id="p-task-name">Add a task below to begin</div>
+            <div class="compact-micro" id="p-micro"></div>
+            <div class="compact-hint" id="p-hint"></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+              <button class="too-big-btn" id="p-too-big-btn" onclick="openDecompose()" style="display:none">⟡ too big?</button>
+              <button class="boring-btn" id="p-boring-btn" onclick="openBoringModal()" style="display:none">☕ boring?</button>
+            </div>
+          </div>
+        </div>
+        <div class="compact-actions">
+          <button class="btn-start" id="p-btn-start" onclick="initiateStart()" disabled>No task selected</button>
+          <button class="btn-done" id="p-btn-done" onclick="completeTask()" style="display:none">Done ✓</button>
+        </div>
+        <div id="p-energy-log" style="display:none;padding:.4rem 1rem .85rem">
+          <div class="sect-label" style="margin-bottom:5px">Energy this session?</div>
+          <div class="energy-row">
+            <button class="energy-btn" onclick="logEnergy('up')">↑ Higher</button>
+            <button class="energy-btn" onclick="logEnergy('same')">→ Same</button>
+            <button class="energy-btn" onclick="logEnergy('down')">↓ Lower</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:.75rem">
+        <button class="info-btn" onclick="toggleScience('sc-timer')">ⓘ why no countdown?</button>
+        <div class="science-card" id="sc-timer">
+          <div class="science-card-title">Time blindness & progress framing</div>
+          <div class="science-card-text">ADHD involves a poorly calibrated internal clock and impaired prospective memory (Barkley, 2011; Toplak et al., 2006). Countdown timers activate time-pressure stress — the prefrontal cortex registers scarcity, which can trigger the same threat response as a deadline, flooding working memory with cortisol and derailing focus. A forward-filling progress indicator uses spatial, progress-framed visual processing instead — a pathway that doesn't trigger threat detection. The slow breathing-pace pulse also provides mild physiological regulation. Tap the time display to see the number if you need it.</div>
+        </div>
+      </div>
+
+      <!-- Phone queue -->
+      <div id="phone-queue">
+        <div class="section-header">
+          <div class="section-header-label">Queue</div>
+          <button class="add-task-btn" onclick="openAddModal()">+ add task</button>
+        </div>
+        <div class="task-list" id="p-task-list"></div>
+        <div class="empty-state" id="p-empty-state">no tasks yet<br>add something small to start</div>
+        <div class="log-section" id="p-log-section" style="display:none">
+          <div class="section-header" style="margin-top:.9rem"><div class="section-header-label">Done today</div></div>
+          <div id="p-log-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- iPad right col -->
+    <div class="right-col">
+      <div class="right-scroll">
+        <div class="section-header" style="margin-top:.2rem">
+          <div class="section-header-label">Queue</div>
+          <button class="add-task-btn" onclick="openAddModal()">+ add task</button>
+        </div>
+        <div class="task-list" id="i-task-list"></div>
+        <div class="empty-state" id="i-empty-state">no tasks yet<br>add something small to begin</div>
+        <div class="log-section" id="i-log-section" style="display:none">
+          <div class="section-header" style="margin-top:1rem"><div class="section-header-label">Done today</div></div>
+          <div id="i-log-list"></div>
+        </div>
+        <div id="i-energy-pattern" style="display:none;margin-top:1.2rem">
+          <div class="section-header"><div class="section-header-label">Your energy pattern</div></div>
+          <div id="i-energy-chart" style="display:flex;gap:4px;align-items:flex-end;height:48px;margin-top:6px"></div>
+          <div style="font-family:var(--fm);font-size:.58rem;color:var(--text-dim);margin-top:5px">last 14 sessions · each bar = one session</div>
+          <button class="info-btn" onclick="toggleScience('sc-ultradian')" style="margin-top:4px">ⓘ ultradian rhythms</button>
+          <div class="science-card" id="sc-ultradian">
+            <div class="science-card-title">Ultradian performance cycles</div>
+            <div class="science-card-text">The brain cycles through approximately 90-minute peaks and 20-minute troughs of cognitive performance throughout the day — the ultradian basic rest-activity cycle (BRAC), first described by Kleitman (1963) and later extended to cognitive performance by Rossi (1991). Your energy log builds a personal map of these cycles, so you can schedule demanding work during peaks and lighter tasks during troughs — working with your neurology rather than against it.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HYPERFOCUS -->
+<div id="screen-hyperfocus" class="screen">
+  <div class="hf-header">
+    <button class="settings-back" onclick="exitHyperfocus()" aria-label="Back">←</button>
+    <div class="hf-title-bar">🧠 Hyperfocus Mode</div>
+    <div style="width:24px"></div>
+  </div>
+  <div class="hf-scroll" id="hf-scroll">
+    <div class="hf-phase" id="hf-phase-1">
+      <div class="hf-phase-num">Phase 1 · Prime</div>
+      <div class="hf-phase-title">What's the most interesting question inside this task?</div>
+      <div class="hf-phase-desc">Reframe your work as a puzzle. The ADHD attention system is interest-driven — curiosity is one of the only reliable triggers for sustained engagement that doesn't require willpower.</div>
+      <button class="info-btn" onclick="toggleScience('sc-curiosity')" style="margin-bottom:9px">ⓘ the science</button>
+      <div class="science-card" id="sc-curiosity">
+        <div class="science-card-title">Interest-based nervous system</div>
+        <div class="science-card-text">Dr. William Dodson's research describes ADHD as an interest-based nervous system. Unlike neurotypical brains that can engage through importance or reward alone, the ADHD brain requires interest, challenge, urgency, or passion. Curiosity priming generates the interest condition before starting. Pre-task question-setting also activates the brain's search mode, which maintains engagement during information-seeking and is far more durable than task-based motivation for ADHD.</div>
+      </div>
+      <div class="micro-label">What are you working on?</div>
+      <input class="hf-input" id="hf-task-name" placeholder="e.g. Study neural networks, chapter 4" type="text">
+      <div class="micro-label">The most interesting question inside it?</div>
+      <input class="hf-input" id="hf-curiosity" placeholder="e.g. Why does backpropagation actually work?" type="text">
+      <button class="hf-btn" onclick="hfNext(1)">Set the puzzle →</button>
+    </div>
+    <div class="hf-phase" id="hf-phase-2" style="display:none">
+      <div class="hf-phase-num">Phase 2 · Lock in</div>
+      <div class="hf-phase-title">Set your environment</div>
+      <div class="hf-phase-desc">Consistent pre-work rituals create conditioned context cues. Your brain learns that this specific setup predicts deep work, and begins shifting neurological state before you've even started.</div>
+      <div class="hf-checklist">
+        <label class="hf-check-item" onclick="toggleHfCheck(this)"><div class="hf-check-box"></div><span class="hf-check-label">Headphones on</span></label>
+        <label class="hf-check-item" onclick="toggleHfCheck(this)"><div class="hf-check-box"></div><span class="hf-check-label">Other apps closed</span></label>
+        <label class="hf-check-item" onclick="toggleHfCheck(this)"><div class="hf-check-box"></div><span class="hf-check-label">Water within reach</span></label>
+        <label class="hf-check-item" onclick="toggleHfCheck(this)"><div class="hf-check-box"></div><span class="hf-check-label">Phone face-down</span></label>
+        <label class="hf-check-item" onclick="toggleHfCheck(this)"><div class="hf-check-box"></div><span class="hf-check-label">Notifications off</span></label>
+      </div>
+      <div class="hf-sound-row">
+        <span class="hf-sound-label">40Hz binaural tone <span style="font-family:var(--fm);font-size:.6rem;color:var(--text-dim)">(headphones required)</span></span>
+        <button onclick="toggleBinaural()" id="binaural-toggle-btn" style="background:none;border:1px solid var(--border);border-radius:99px;padding:5px 12px;cursor:pointer;font-family:var(--fm);font-size:.63rem;color:var(--text-muted);transition:all .15s">off</button>
+      </div>
+      <button class="info-btn" onclick="toggleScience('sc-binaural')" style="margin-bottom:9px">ⓘ about the 40Hz tone</button>
+      <div class="science-card" id="sc-binaural">
+        <div class="science-card-title">Gamma binaural entrainment</div>
+        <div class="science-card-text">Binaural beats present slightly different frequencies to each ear; the brain perceives the mathematical difference as a third tone. 40Hz is the gamma frequency band, associated with focused cognitive processing and dopaminergic activity. Research by Oster (1973) established the entrainment mechanism; Chaieb et al. (2015) and Beauchene et al. (2016) suggest gamma binaural beats may modestly improve sustained attention and working memory. Effect sizes are small — this is a supportive tool. Headphones are required because the stereo separation is the mechanism.</div>
+      </div>
+      <button class="hf-btn" onclick="hfNext(2)">Environment ready →</button>
+    </div>
+    <div class="hf-phase" id="hf-phase-3" style="display:none">
+      <div class="hf-phase-num">Phase 3 · On-ramp</div>
+      <div class="hf-phase-title">10-minute commitment lock</div>
+      <div class="hf-phase-desc">Don't switch. Don't check anything. Flow probability rises sharply after 8–12 uninterrupted minutes — this is the hardest and most important part.</div>
+      <button class="info-btn" onclick="toggleScience('sc-onramp')" style="margin-bottom:9px">ⓘ why 10 minutes</button>
+      <div class="science-card" id="sc-onramp">
+        <div class="science-card-title">Flow state on-ramp</div>
+        <div class="science-card-text">Csikszentmihalyi's flow research (1990) describes the transition into flow as requiring sustained initiation — attention must resist distraction despite low initial reward. For ADHD specifically, once engaged past this threshold, dopamine-driven reinforcement becomes self-sustaining (Solanto et al., 2010) — the task itself generates enough dopamine to maintain engagement. The lock reduces the window during which you're most vulnerable to task-switching before this self-sustaining phase begins.</div>
+      </div>
+      <div class="hf-lock-timer">
+        <div class="hf-lock-number" id="hf-lock-display">10:00</div>
+        <div class="hf-lock-label" id="hf-lock-label">ready to begin</div>
+        <div class="hf-lock-bar"><div class="hf-lock-fill" id="hf-lock-fill" style="width:0%"></div></div>
+      </div>
+      <button class="hf-btn go" id="hf-lock-btn" onclick="startOnRamp()">Begin on-ramp →</button>
+    </div>
+    <div class="hf-phase" id="hf-phase-4" style="display:none">
+      <div class="hf-phase-num">Phase 4 · Deep work</div>
+      <div class="hf-phase-title" id="hf-deep-task-label">In flow.</div>
+      <div class="hf-phase-desc" id="hf-curiosity-reminder" style="color:var(--accent);font-family:var(--fm);font-size:.8rem"></div>
+      <div class="hf-lock-timer">
+        <div class="hf-lock-number" id="hf-deep-display">90:00</div>
+        <div class="hf-lock-label">soft reminder at 5 min remaining</div>
+        <div class="hf-lock-bar"><div class="hf-lock-fill" id="hf-deep-fill" style="width:0%;background:var(--purple)"></div></div>
+      </div>
+      <div class="hf-btn-row">
+        <button class="hf-btn go" onclick="endDeepWork(true)" style="flex:1">Done — mark complete ✓</button>
+        <button class="hf-btn" onclick="endDeepWork(false)" style="background:none;border-color:var(--border);color:var(--text-muted);flex:0 0 auto;width:auto;padding:.72rem 1.1rem">Exit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RETURN -->
+<div id="screen-return" class="screen">
+  <div class="return-title">Welcome back.</div>
+  <div class="return-sub">No shame. No backlog. One thing at a time.</div>
+  <div class="return-task-name" id="return-task-name"></div>
+  <button class="btn-start" style="max-width:320px;width:100%" onclick="returnToMain()">Pick up where I left off</button>
+  <button class="btn-ghost" onclick="showScreen('checkin')" style="margin-top:.4rem">Start fresh</button>
+</div>
+
+<!-- SETTINGS -->
+<div id="screen-settings" class="screen">
+  <div class="settings-header">
+    <button class="settings-back" onclick="showScreen('main')" aria-label="Back">←</button>
+    <div class="settings-title">Settings</div>
+  </div>
+  <div class="settings-scroll">
+    <div class="settings-sect">Timer</div>
+    <div class="settings-row"><span class="settings-row-label">Default session length</span>
+      <select id="setting-duration" onchange="saveSetting('duration',this.value)">
+        <option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option>
+        <option value="25" selected>25 min</option><option value="30">30 min</option><option value="45">45 min</option>
+      </select></div>
+    <div class="settings-row"><span class="settings-row-label">Countdown seconds</span>
+      <select id="setting-countdown" onchange="saveSetting('countdown',this.value)">
+        <option value="3" selected>3</option><option value="5">5</option><option value="10">10</option>
+      </select></div>
+    <div class="settings-row"><span class="settings-row-label">Reward sounds</span>
+      <select id="setting-sounds" onchange="saveSetting('sounds',this.value)">
+        <option value="on" selected>On</option><option value="off">Off</option>
+      </select></div>
+    <div class="settings-sect">Body checks</div>
+    <div class="settings-row"><span class="settings-row-label">Remind every (minutes)</span>
+      <input type="number" id="setting-bodycheck" value="45" min="15" max="120" onchange="saveSetting('bodycheck',this.value)"></div>
+    <div class="settings-sect">Hyperfocus Mode</div>
+    <div class="settings-row"><span class="settings-row-label">On-ramp lock (minutes)</span>
+      <input type="number" id="setting-onramp" value="10" min="5" max="20" onchange="saveSetting('onramp',this.value)"></div>
+    <div class="settings-row"><span class="settings-row-label">Deep work session</span>
+      <select id="setting-deepwork" onchange="saveSetting('deepwork',this.value)">
+        <option value="45">45 min</option><option value="60">60 min</option>
+        <option value="90" selected>90 min</option><option value="120">120 min</option>
+      </select></div>
+    <div class="settings-sect">Data</div>
+    <button class="danger-btn" onclick="confirmClearData()">Clear all tasks and reset app</button>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div id="screen-about" class="screen">
+  <div class="about-header">
+    <button class="settings-back" onclick="showScreen('main')" aria-label="Back">←</button>
+    <div class="settings-title">About Focus</div>
+  </div>
+  <div class="about-scroll">
+    <div class="about-logo">🧠</div>
+    <div class="about-title">Focus</div>
+    <div class="about-proto">Prototype v0.3 · in testing</div>
+
+    <div class="about-section">
+      <div class="about-section-title">What this is</div>
+      <div class="about-p">Focus is an ADHD management tool built around actual neuroscience — not productivity advice designed for neurotypical brains. Most apps treat ADHD like a motivation or organisation problem. It isn't. ADHD involves real, measurable differences in dopamine signalling, executive function, time perception, and emotional regulation. Every feature here is designed around those differences specifically.</div>
+      <div class="about-p">The science behind each feature is accessible in-app — tap any ⓘ button to read it. Understanding why a strategy works dramatically increases the chance you'll actually use it.</div>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-title">Features and the science behind them</div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>🎯</span> The One Thing</div>
+        <div class="about-feature-body">One task dominates the screen. Everything else fades to near-invisible. This mimics the salience-filtering function of a healthy prefrontal cortex, which in ADHD fails to assign appropriate priority weight to tasks — causing everything to feel equally urgent or equally unimportant.</div>
+        <div class="about-science-note">Barkley (1997): Executive functions and self-regulation. Castellanos & Proal (2012): Large-scale brain systems in ADHD.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>⏱</span> Ambient Progress Timer</div>
+        <div class="about-feature-body">Time fills forward like a vessel — no countdown. The number is hidden by default (tap to reveal it). Countdown timers can trigger time-pressure stress and cortisol spikes; progress framing doesn't. The slow breathing-pace pulse provides mild physiological regulation while you work.</div>
+        <div class="about-science-note">Barkley (2011): Time blindness in ADHD. Toplak, Dockstader & Tannock (2006): Timing and temporal processing in ADHD.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>3️⃣</span> 3-2-1 Start Ritual</div>
+        <div class="about-feature-body">Initiation paralysis — the inability to start despite knowing what to do — is one of the most disabling ADHD symptoms. It's caused by the amygdala flagging the task as threatening, triggering avoidance. A countdown gives the prefrontal cortex a specific, low-stakes sub-task (count down) that bypasses the threat response and creates behavioural momentum into the main task.</div>
+        <div class="about-science-note">Brown (2005): Attention Deficit Disorder: The unfocused mind. Shaw et al. (2014): Emotional dysregulation in ADHD.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>🎲</span> Variable Reward System</div>
+        <div class="about-feature-body">Task completions trigger rewards at four tiers — common (60%), uncommon (28%), rare (10%), and a guaranteed jackpot every 15 completions. The unpredictability is the mechanism: the dopamine system responds more strongly to variable reinforcement schedules than predictable ones. The ADHD brain is especially sensitive to this due to chronically lower baseline dopamine tone.</div>
+        <div class="about-science-note">Sagvolden et al. (2005): Altered reinforcement mechanisms in ADHD. Schultz (1997): Dopamine neurons and reward prediction error.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>☕</span> Boring Task Mode</div>
+        <div class="about-feature-body">Temptation bundling pairs an aversive task with something mildly rewarding you only access during that task. This activates the mesolimbic dopamine pathway for tasks that wouldn't otherwise generate enough dopamine for comfortable engagement. The 2-minute option lowers the initiation bar to near zero by removing the threat signal that triggers avoidance.</div>
+        <div class="about-science-note">Milkman, Minson & Volpp (2014): Holding the hunger games hostage. Volkow et al. (2011): Dopamine in reward motivation.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>💧</span> Body Check Nudges</div>
+        <div class="about-feature-body">During hyperfocus, the ADHD brain suppresses interoceptive signals — hunger, thirst, and fatigue go unnoticed for hours. Dehydration alone impairs working memory and sustained attention. These nudges reactivate physical awareness before it becomes dysregulating.</div>
+        <div class="about-science-note">Critchley & Garfinkel (2017): Interoception and human behaviour. Adan et al. (2019): Nutritional psychiatry and brain performance.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>🟦</span> Regulation Toolkit</div>
+        <div class="about-feature-body">Box breathing, physiological sigh, and cold water exposure are three evidence-based techniques for interrupting an amygdala hijack — the state where emotional flooding prevents access to the prefrontal cortex. These work via the vagus nerve and parasympathetic nervous system. They are physiological interventions with measurable effects on heart rate variability and cortisol, not just calming advice.</div>
+        <div class="about-science-note">Huberman et al. (2023): Brief structured respiration practices enhance mood (Cell Reports Medicine). Porges (2011): The polyvagal theory.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>🧠</span> Hyperfocus Mode</div>
+        <div class="about-feature-body">A four-phase sequence: curiosity priming (generates interest-based engagement), ritual lock-in (creates conditioned context cues), 10-minute on-ramp (gets past the flow threshold), and a 90-minute deep work session aligned with ultradian performance cycles.</div>
+        <div class="about-science-note">Csikszentmihalyi (1990): Flow. Kleitman (1963): Ultradian basic rest-activity cycle. Dodson (2016): ADHD and the interest-based nervous system.</div>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-title"><span>⚡</span> Energy Log</div>
+        <div class="about-feature-body">After each session, you rate your energy — higher, same, or lower. Over time this reveals your personal ultradian pattern: when your brain naturally peaks and troughs. You can then schedule demanding work during peaks and lighter tasks during troughs — working with your neurology, not against it.</div>
+        <div class="about-science-note">Rossi (1991): The 20-minute break. Kleitman (1963): Sleep and Wakefulness — the basic rest-activity cycle.</div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-title">What this is not</div>
+      <div class="about-p">This app is not a medical device, a diagnostic tool, or a replacement for professional treatment. ADHD is a complex neurodevelopmental condition. Medication, therapy (especially ADHD coaching and CBT), and environmental support remain the most effective interventions. This tool is designed to complement those — not replace them.</div>
+    </div>
+
+    <div class="about-feedback">
+      <div class="about-feedback-title">This is a prototype — your feedback shapes it</div>
+      <div class="about-feedback-body">
+        Focus is actively being developed and tested with real people. If something doesn't work for your brain, if a feature causes more friction than it removes, or if you have ideas — that's genuinely valuable.<br><br>
+        Send feedback to: <a href="mailto:jakob.ozias@gmail.com" class="about-email">jakob.ozias@gmail.com</a><br><br>
+        Useful things to share: what you were trying to do, what happened, what your ADHD presentation is like, and any specific suggestions. No detail is too small.
+      </div>
+    </div>
+    <div class="about-disclaimer">All citations are provided for transparency. This app was built by an independent developer, not a clinical team. Features are based on peer-reviewed research but have not been clinically validated as an app. Always prioritise professional support for severe symptoms.</div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<!-- COUNTDOWN -->
+<div id="countdown-overlay">
+  <div class="cd-task" id="cd-task"></div>
+  <div class="cd-number" id="cd-number">3</div>
+  <div class="cd-micro" id="cd-micro"></div>
+  <div class="cd-pairing" id="cd-pairing"></div>
+  <button class="cd-cancel" onclick="cancelCountdown()">cancel</button>
+</div>
+
+<!-- ADD TASK -->
+<div id="modal-add" class="modal-backdrop" onclick="handleBackdropClick('modal-add',event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-title">What needs to happen?</div>
+    <div><div class="micro-label">Task name</div>
+      <input class="modal-input" id="task-input" type="text" placeholder="e.g. Reply to Sarah's email" maxlength="80" onkeydown="if(event.key==='Enter')addTask()"></div>
+    <div><div class="micro-label">First 2 minutes — literal first action</div>
+      <input class="modal-input" id="micro-input" type="text" placeholder="e.g. Open email, type the subject line" maxlength="80" onkeydown="if(event.key==='Enter')addTask()"></div>
+    <div class="boring-toggle-row">
+      <span class="boring-toggle-label">☕ This is a boring / unpleasant task</span>
+      <label class="toggle-switch"><input type="checkbox" id="boring-toggle"><div class="toggle-slider"></div></label>
+    </div>
+    <div id="boring-extras" style="display:none">
+      <div class="micro-label">What will you pair with it? (optional)</div>
+      <input class="modal-input" id="pairing-input" type="text" placeholder="e.g. Favourite playlist, good coffee, comfy chair" maxlength="80">
+      <button class="btn-ghost" style="width:100%;margin-top:6px;font-size:.78rem;padding:.6rem" onclick="set2min()">⏱ 2-minute commitment only</button>
+      <button class="info-btn" onclick="toggleScience('sc-boring')" style="margin-top:3px">ⓘ why this helps</button>
+      <div class="science-card" id="sc-boring">
+        <div class="science-card-title">Temptation bundling & 2-minute rule</div>
+        <div class="science-card-text">Temptation bundling (Milkman, 2014) pairs an aversive task with a mild reward, activating the mesolimbic dopamine pathway to compensate for the task's low intrinsic reward. The 2-minute commitment exploits a documented phenomenon: initiation is the highest-cost moment. Once started, completion drive often takes over naturally. Committing to only 2 minutes removes the amygdala's assessment that the task is too large or too painful to begin — bypassing avoidance entirely.</div>
+      </div>
+    </div>
+    <div class="modal-row">
+      <button class="modal-btn-add" onclick="addTask()">Add task</button>
+      <button class="modal-btn-cancel" onclick="closeModal('modal-add')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DECOMPOSE -->
+<div id="modal-decompose" class="modal-backdrop" onclick="handleBackdropClick('modal-decompose',event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-title">Break it into smaller pieces</div>
+    <div><div class="micro-label">Step 1</div><input class="modal-sub-input" id="sub1" type="text" placeholder="First small step..." maxlength="60"></div>
+    <div><div class="micro-label">Step 2</div><input class="modal-sub-input" id="sub2" type="text" placeholder="Second small step..." maxlength="60"></div>
+    <div><div class="micro-label">Step 3 (optional)</div><input class="modal-sub-input" id="sub3" type="text" placeholder="Third small step..." maxlength="60"></div>
+    <div class="modal-row" style="margin-top:3px">
+      <button class="modal-btn-warn" onclick="saveDecompose()">Replace with steps</button>
+      <button class="modal-btn-cancel" onclick="closeModal('modal-decompose')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- BORING SETUP -->
+<div id="modal-boring" class="modal-backdrop" onclick="handleBackdropClick('modal-boring',event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-title">☕ Boring task setup</div>
+    <div style="font-size:.82rem;color:var(--text-muted);line-height:1.6">Pairing this task with something you enjoy activates enough dopamine to make starting possible.</div>
+    <div><div class="micro-label">What will you pair with it?</div>
+      <input class="modal-input" id="boring-pairing-edit" type="text" placeholder="e.g. Favourite playlist, good coffee, sit outside" maxlength="80"></div>
+    <div class="modal-row">
+      <button class="modal-btn-add" onclick="saveBoringPairing()" style="background:var(--warm)">Set pairing</button>
+      <button class="modal-btn-cancel" onclick="closeModal('modal-boring')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- REGULATION -->
+<div id="reg-overlay">
+  <div class="reg-ex-title" id="reg-ex-title"></div>
+  <div class="reg-ex-desc" id="reg-ex-desc"></div>
+  <div class="reg-ex-phase" id="reg-ex-phase"></div>
+  <div class="reg-ex-count" id="reg-ex-count"></div>
+  <button class="reg-close" onclick="stopRegEx()">done</button>
+</div>
+
+<!-- REWARD -->
+<div id="reward-flash">
+  <div class="rf-bg" id="rf-bg"></div>
+  <div class="rf-rays" id="rf-rays" style="display:none"></div>
+  <div class="rf-content">
+    <div class="rf-icon" id="rf-icon">✓</div>
+    <div class="rf-text" id="rf-text" style="color:#0f0f0f">Done.</div>
+    <div class="rf-flavor" id="rf-flavor"></div>
+    <div class="rf-sub" id="rf-sub"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script>
+// ══ REWARD TIERS ══
+const RP={
+  common:[
+    {icon:'✓',text:'Done.',flavor:'',bg:'#c8f060',tc:'#0f0f0f'},
+    {icon:'✓',text:'Done.',flavor:'',bg:'#c8f060',tc:'#0f0f0f'},
+    {icon:'✓',text:'Done.',flavor:'One more cleared.',bg:'#c8f060',tc:'#0f0f0f'},
+    {icon:'✓',text:'Done.',flavor:'',bg:'#c8f060',tc:'#0f0f0f'},
+    {icon:'✓',text:'Done.',flavor:'',bg:'#c8f060',tc:'#0f0f0f'},
+  ],
+  uncommon:[
+    {icon:'⚡',text:'Sharp.',flavor:'Neural pathways firing.',bg:'#60c8f0',tc:'#0f0f0f'},
+    {icon:'🔥',text:'On a roll.',flavor:'Keep the momentum.',bg:'#f0a060',tc:'#0f0f0f'},
+    {icon:'💡',text:'Progress.',flavor:'Small wins compound.',bg:'#f0d060',tc:'#0f0f0f'},
+    {icon:'🎯',text:'Clean.',flavor:'Exactly as planned.',bg:'#a0f060',tc:'#0f0f0f'},
+  ],
+  rare:[
+    {icon:'🌊',text:'Flow state.',flavor:'You are in it. Stay.',bg:'#6080f0',tc:'#fff'},
+    {icon:'🦅',text:'Locked in.',flavor:'This is what it feels like.',bg:'#8060f0',tc:'#fff'},
+    {icon:'✨',text:'Exceptional.',flavor:'Rare form today.',bg:'#c060f0',tc:'#fff'},
+  ],
+  jackpot:[
+    {icon:'🏆',text:'Jackpot.',flavor:'Once in a while — this.',bg:'#f0d060',tc:'#0f0f0f',j:true},
+    {icon:'💎',text:'Gem.',flavor:"Today's best moment.",bg:'#60c8f0',tc:'#0f0f0f',j:true},
+  ]
+};
+function pickReward(force){
+  if(force){const p=RP.jackpot;return p[Math.floor(Math.random()*p.length)];}
+  const r=Math.random();
+  if(r<.60){const p=RP.common;return p[Math.floor(Math.random()*p.length)];}
+  if(r<.88){const p=RP.uncommon;return p[Math.floor(Math.random()*p.length)];}
+  return RP.rare[Math.floor(Math.random()*RP.rare.length)];
+}
+
+// ══ AUDIO ══
+let _ac=null;
+function getAC(){
+  if(!_ac||_ac.state==='closed')_ac=new(window.AudioContext||window.webkitAudioContext)();
+  if(_ac.state==='suspended')_ac.resume();
+  return _ac;
+}
+function playSound(type){
+  if(state.settings.sounds==='off')return;
+  try{const a=getAC(),t=a.currentTime;
+    if(type==='common')coin(a,t);
+    else if(type==='uncommon')chime(a,t);
+    else if(type==='rare')fanfare(a,t,false);
+    else if(type==='jackpot')fanfare(a,t,true);
+    else if(type==='tick')tick(a,t);
+    else if(type==='start')whoosh(a,t);
+  }catch(e){}
+}
+function coin(a,t){
+  const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);
+  o.type='sine';o.frequency.setValueAtTime(880,t);o.frequency.exponentialRampToValueAtTime(1320,t+.06);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.28,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+.22);
+  o.start(t);o.stop(t+.25);
+  const o2=a.createOscillator(),g2=a.createGain();o2.connect(g2);g2.connect(a.destination);
+  o2.type='sine';o2.frequency.value=1760;g2.gain.setValueAtTime(0,t+.05);
+  g2.gain.linearRampToValueAtTime(.1,t+.07);g2.gain.exponentialRampToValueAtTime(.001,t+.2);
+  o2.start(t+.05);o2.stop(t+.25);
+}
+function chime(a,t){
+  [523,659,784].forEach((f,i)=>{
+    const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);
+    o.type='sine';o.frequency.value=f;const s=t+i*.11;
+    g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.2,s+.02);g.gain.exponentialRampToValueAtTime(.001,s+.45);
+    o.start(s);o.stop(s+.5);
+  });
+}
+function fanfare(a,t,big){
+  [523,659,784,1047].forEach((f,i)=>{
+    const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);
+    o.type='triangle';o.frequency.value=f;const s=t+i*.09;
+    g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.18,s+.02);g.gain.exponentialRampToValueAtTime(.001,s+.36);
+    o.start(s);o.stop(s+.4);
+    const o2=a.createOscillator(),g2=a.createGain();o2.connect(g2);g2.connect(a.destination);
+    o2.type='sine';o2.frequency.value=f*2;g2.gain.setValueAtTime(0,s);
+    g2.gain.linearRampToValueAtTime(.07,s+.02);g2.gain.exponentialRampToValueAtTime(.001,s+.26);
+    o2.start(s);o2.stop(s+.3);
+  });
+  if(big){
+    [261,329,392,523].forEach(f=>{
+      const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);
+      o.type='sine';o.frequency.value=f;const s=t+.36;
+      g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.1,s+.08);g.gain.exponentialRampToValueAtTime(.001,s+1.1);
+      o.start(s);o.stop(s+1.2);
+    });
+    for(let i=0;i<5;i++){
+      const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);
+      o.type='sine';o.frequency.value=2000+Math.random()*2000;const s=t+.4+Math.random()*.6;
+      g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.05,s+.01);g.gain.exponentialRampToValueAtTime(.001,s+.16);
+      o.start(s);o.stop(s+.2);
+    }
+  }
+}
+function tick(a,t){const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.type='sine';o.frequency.value=660;g.gain.setValueAtTime(.14,t);g.gain.exponentialRampToValueAtTime(.001,t+.08);o.start(t);o.stop(t+.1);}
+function whoosh(a,t){
+  const sz=a.sampleRate*.18,b=a.createBuffer(1,sz,a.sampleRate),d=b.getChannelData(0);
+  for(let i=0;i<sz;i++)d[i]=(Math.random()*2-1)*(1-i/sz);
+  const s=a.createBufferSource(),g=a.createGain(),f=a.createBiquadFilter();
+  f.type='bandpass';f.frequency.value=800;f.Q.value=.8;
+  s.buffer=b;s.connect(f);f.connect(g);g.connect(a.destination);
+  g.gain.setValueAtTime(.16,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);
+  s.start(t);s.stop(t+.2);
+}
+
+// ══ STATE ══
+let state={
+  tasks:[],currentTaskId:null,
+  timerSeconds:0,timerRunning:false,timerInterval:null,countdownInterval:null,
+  currentScreen:'checkin',userState:'okay',
+  settings:{duration:25,countdown:3,bodycheck:45,onramp:10,deepwork:90,sounds:'on'},
+  bodyCheckTimer:null,lastSeen:null,breathExpanded:false,
+  completedToday:[],totalCompleted:0,
+  energyLog:[],
+  hfPhase:0,hfLockInterval:null,hfDeepInterval:null,
+  hfLockSeconds:0,hfDeepSeconds:0,
+  binauralOn:false,binauralNodes:null,
+  isIPad:false,showTime:false,
+  regTimer:null
+};
+const KEY='adhd_focus_v4';
+const JACKPOT_EVERY=15;
+
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify({
+    tasks:state.tasks,currentTaskId:state.currentTaskId,settings:state.settings,
+    lastSeen:Date.now(),userState:state.userState,completedToday:state.completedToday,
+    totalCompleted:state.totalCompleted,energyLog:state.energyLog
+  }));}catch(e){}
+}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(KEY)||'null');if(!d)return;
+    state.tasks=d.tasks||[];state.currentTaskId=d.currentTaskId||null;
+    state.settings=Object.assign(state.settings,d.settings||{});
+    state.lastSeen=d.lastSeen||null;state.userState=d.userState||'okay';
+    state.totalCompleted=d.totalCompleted||0;
+    state.energyLog=d.energyLog||[];
+    const tod=new Date();tod.setHours(0,0,0,0);
+    state.completedToday=(d.completedToday||[]).filter(c=>c.at>tod.getTime());
+  }catch(e){}
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  load();applySettings();detectLayout();
+  window.addEventListener('resize',detectLayout);
+  const gap=state.lastSeen?(Date.now()-state.lastSeen)/60000:0;
+  if(gap>30&&state.tasks.length>0){
+    const cur=state.tasks.find(t=>t.id===state.currentTaskId)||state.tasks[0];
+    if(cur){document.getElementById('return-task-name').textContent=cur.name;showScreen('return');}
+    else showScreen('checkin');
+  }else showScreen('checkin');
+  renderAll();scheduleBodyCheck();
+  document.addEventListener('keydown',e=>{
+    if(state.currentScreen==='main'&&e.code==='Space'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
+      e.preventDefault();if(!state.timerRunning&&state.currentTaskId)initiateStart();
+    }
+  });
+  const bt=document.getElementById('boring-toggle');
+  if(bt)bt.addEventListener('change',function(){
+    document.getElementById('boring-extras').style.display=this.checked?'block':'none';
+  });
+});
+
+function detectLayout(){
+  state.isIPad=window.innerWidth>=768;
+  document.querySelectorAll('.phone-only').forEach(el=>el.style.display=state.isIPad?'none':'block');
+  document.querySelectorAll('.ipad-only').forEach(el=>el.style.display=state.isIPad?'flex':'none');
+  const pq=document.getElementById('phone-queue');if(pq)pq.style.display=state.isIPad?'none':'block';
+}
+
+// ══ SCREENS ══
+function showScreen(n){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+n).classList.add('active');
+  state.currentScreen=n;
+}
+function setStateAndGo(s){
+  state.userState=s;save();
+  const L={overwhelmed:'😵 overwhelmed',okay:'😐 okay',focused:'⚡ focused',wired:'🌀 scattered'};
+  document.getElementById('state-pill-label').textContent=L[s]||s;
+  if(s==='overwhelmed')showScreen('overwhelmed');
+  else{showScreen('main');renderAll();}
+}
+function returnToMain(){showScreen('main');renderAll();}
+
+// ══ BREATH ══
+function toggleBreath(){
+  const el=document.getElementById('breath-inner');
+  if(!state.breathExpanded){
+    el.classList.add('expanding');el.textContent='hold...';state.breathExpanded=true;
+    setTimeout(()=>{el.classList.remove('expanding');el.textContent='release';
+      setTimeout(()=>{el.textContent='breathe';state.breathExpanded=false;},3000);
+    },4000);
+  }
+}
+
+// ══ REGULATION ══
+const REG_EX={
+  box:{title:'Box Breathing',desc:'4-4-4-4 pattern. Activates the parasympathetic nervous system via slow exhalation, lowering cortisol and amygdala activity within 60–90 seconds.',phases:['Inhale','Hold','Exhale','Hold'],counts:[4,4,4,4]},
+  sigh:{title:'Physiological Sigh',desc:'Two quick inhales through the nose, then a long slow exhale through the mouth. The fastest known method to downregulate acute stress. (Huberman et al., 2023)',phases:['Inhale (sniff in)','Inhale again','Exhale slowly...'],counts:[2,1,8]},
+  cold:{title:'Cold Water',desc:'Splash cold water on your face and wrists, or hold cold water in your palms. Triggers the diving reflex via the trigeminal nerve, producing rapid parasympathetic activation.',phases:['Get cold water','Apply to face & wrists','Hold or repeat'],counts:[5,30,10]}
+};
+let _regData=null,_regPhaseIdx=0,_regCount=0;
+function startRegEx(type){
+  _regData=REG_EX[type];_regPhaseIdx=0;_regCount=_regData.counts[0];
+  document.getElementById('reg-ex-title').textContent=_regData.title;
+  document.getElementById('reg-ex-desc').textContent=_regData.desc;
+  document.getElementById('reg-overlay').classList.add('visible');
+  runRegPhase();
+}
+function runRegPhase(){
+  if(!_regData)return;
+  document.getElementById('reg-ex-phase').textContent=_regData.phases[_regPhaseIdx];
+  document.getElementById('reg-ex-count').textContent=_regCount;
+  if(state.regTimer)clearInterval(state.regTimer);
+  state.regTimer=setInterval(()=>{
+    _regCount--;
+    const el=document.getElementById('reg-ex-count');
+    if(el)el.textContent=_regCount;
+    if(_regCount<=0){
+      clearInterval(state.regTimer);
+      _regPhaseIdx=(_regPhaseIdx+1)%_regData.phases.length;
+      _regCount=_regData.counts[_regPhaseIdx];
+      setTimeout(runRegPhase,500);
+    }
+  },1000);
+}
+function stopRegEx(){
+  if(state.regTimer){clearInterval(state.regTimer);state.regTimer=null;}
+  document.getElementById('reg-overlay').classList.remove('visible');
+  _regData=null;
+}
+
+// ══ OVERWHELMED ══
+function overwhelmedAction(a){
+  if(a==='one'){
+    if(!state.tasks.length){openAddModal();return;}
+    if(!state.currentTaskId)state.currentTaskId=state.tasks[0].id;
+    save();showScreen('main');renderAll();
+  }else if(a==='tiny'){showScreen('main');openAddModal();}
+  else{state.currentTaskId=null;showScreen('main');startBreakTimer(5);}
+}
+function startBreakTimer(m){
+  clearTimerState();state.timerSeconds=m*60;state.timerRunning=true;
+  updateTimerDisplay();state.timerInterval=setInterval(tickTimer,1000);
+  const n='Break time',mi='Step away, rest, breathe.',h='';
+  [['p-task-name',n,'compact-name'],['big-task-name',n,'ambient-task-name'],
+   ['p-micro',mi,'compact-micro'],['big-micro',mi,'ambient-micro'],
+   ['p-hint',h,'compact-hint'],['big-hint',h,'ambient-hint']].forEach(([id,v,c])=>{
+    const el=document.getElementById(id);if(el){el.textContent=v;el.className=c;}
+  });
+  ['p-btn-start','big-btn-start'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['p-btn-done','big-btn-done'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='block';});
+}
+
+// ══ TASKS ══
+function addTask(){
+  const n=document.getElementById('task-input').value.trim();if(!n){document.getElementById('task-input').focus();return;}
+  const boring=document.getElementById('boring-toggle').checked;
+  const pairing=document.getElementById('pairing-input')?.value.trim()||'';
+  const twoMin=document.getElementById('modal-add').dataset.twoMin==='1';
+  const task={id:Date.now().toString(),name:n,micro:document.getElementById('micro-input').value.trim(),createdAt:Date.now(),completions:[],boring,pairing,twoMin};
+  state.tasks.push(task);
+  if(!state.currentTaskId)state.currentTaskId=task.id;
+  save();closeModal('modal-add');renderAll();showToast('Task added');
+}
+function set2min(){
+  document.getElementById('modal-add').dataset.twoMin='1';
+  showToast('2-min commitment set');
+}
+function selectTask(id){state.currentTaskId=id;save();renderAll();clearTimerState();}
+function deleteTask(id,e){
+  e.stopPropagation();
+  state.tasks=state.tasks.filter(t=>t.id!==id);
+  if(state.currentTaskId===id){state.currentTaskId=state.tasks[0]?.id||null;clearTimerState();}
+  save();renderAll();showToast('Task removed');
+}
+function completeTask(){
+  const task=state.tasks.find(t=>t.id===state.currentTaskId);if(!task)return;
+  const sec=(state.settings.duration*60)-state.timerSeconds;
+  (task.completions=task.completions||[]).push({at:Date.now(),seconds:sec});
+  state.completedToday.push({name:task.name,at:Date.now(),seconds:sec,boring:task.boring});
+  state.tasks=state.tasks.filter(t=>t.id!==state.currentTaskId);
+  clearTimerState();state.currentTaskId=state.tasks[0]?.id||null;
+  state.totalCompleted++;save();showEnergyLog(true);
+  showReward(task.name,state.tasks.length,state.totalCompleted%JACKPOT_EVERY===0);
+}
+function markDoneTiny(id,e){
+  e.stopPropagation();
+  const task=state.tasks.find(t=>t.id===id);if(!task)return;
+  if(id===state.currentTaskId){completeTask();return;}
+  state.completedToday.push({name:task.name,at:Date.now(),seconds:0});
+  state.tasks=state.tasks.filter(t=>t.id!==id);
+  if(!state.currentTaskId&&state.tasks.length)state.currentTaskId=state.tasks[0].id;
+  state.totalCompleted++;save();showEnergyLog(true);
+  showReward(task.name,state.tasks.length,state.totalCompleted%JACKPOT_EVERY===0);
+}
+
+// ══ BORING ══
+function openBoringModal(){
+  const task=state.tasks.find(t=>t.id===state.currentTaskId);if(!task)return;
+  document.getElementById('boring-pairing-edit').value=task.pairing||'';
+  document.getElementById('modal-boring').classList.add('visible');
+  setTimeout(()=>document.getElementById('boring-pairing-edit').focus(),120);
+}
+function saveBoringPairing(){
+  const task=state.tasks.find(t=>t.id===state.currentTaskId);if(!task)return;
+  task.boring=true;task.pairing=document.getElementById('boring-pairing-edit').value.trim();
+  save();closeModal('modal-boring');renderAll();showToast('Pairing saved');
+}
+
+// ══ ENERGY ══
+function showEnergyLog(show){
+  ['p-energy-log','big-energy-log'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=show?'block':'none';});
+}
+function logEnergy(val){
+  state.energyLog.push({at:Date.now(),val});
+  if(state.energyLog.length>30)state.energyLog=state.energyLog.slice(-30);
+  save();showEnergyLog(false);renderEnergyChart();showToast('Energy logged');
+}
+function renderEnergyChart(){
+  const chart=document.getElementById('i-energy-chart');
+  const pat=document.getElementById('i-energy-pattern');
+  if(!chart||!pat)return;
+  const recent=state.energyLog.slice(-14);
+  if(recent.length<3){pat.style.display='none';return;}
+  pat.style.display='block';
+  const colMap={up:'var(--accent)',same:'var(--warm)',down:'var(--danger)'};
+  const hMap={up:40,same:24,down:12};
+  chart.innerHTML=recent.map(e=>`<div style="flex:1;background:${colMap[e.val]||'var(--border)'};height:${hMap[e.val]||16}px;border-radius:3px;opacity:.7" title="${new Date(e.at).toLocaleDateString()}"></div>`).join('');
+}
+
+// ══ RENDER ══
+function renderAll(){renderTaskList();renderLog();updateOneThingDisplay();renderEnergyChart();}
+function renderTaskList(){
+  const pL=document.getElementById('p-task-list'),iL=document.getElementById('i-task-list');
+  const pE=document.getElementById('p-empty-state'),iE=document.getElementById('i-empty-state');
+  if(!state.tasks.length){pL.innerHTML='';iL.innerHTML='';pE.style.display='block';iE.style.display='block';return;}
+  pE.style.display='none';iE.style.display='none';
+  const show=state.userState==='overwhelmed'?state.tasks.filter(t=>t.id===state.currentTaskId):state.tasks;
+  const html=show.map(task=>{
+    const c=task.id===state.currentTaskId;
+    return`<div class="task-item${c?' is-current':''}${task.boring?' is-boring':''}" onclick="selectTask('${task.id}')">
+      <div class="task-radio"></div>
+      <div class="task-item-name">${esc(task.name)}${task.boring?'<span class="boring-badge">☕</span>':''}</div>
+      <div class="task-actions-inline">
+        <button class="task-action-tiny done-tiny" onclick="markDoneTiny('${task.id}',event)">✓</button>
+        <button class="task-action-tiny del-tiny" onclick="deleteTask('${task.id}',event)">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  pL.innerHTML=html;iL.innerHTML=html;
+}
+function renderLog(){
+  const pS=document.getElementById('p-log-section'),iS=document.getElementById('i-log-section');
+  const pL=document.getElementById('p-log-list'),iL=document.getElementById('i-log-list');
+  if(!state.completedToday.length){pS.style.display='none';iS.style.display='none';return;}
+  pS.style.display='block';iS.style.display='block';
+  const html=state.completedToday.slice().reverse().map(c=>{
+    const m=c.seconds>0?Math.round(c.seconds/60)+'m':'';
+    const t=new Date(c.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    return`<div class="log-item"><span class="log-check">✓</span><span class="log-name">${esc(c.name)}</span><span class="log-time">${m?m+' · ':''}${t}</span></div>`;
+  }).join('');
+  pL.innerHTML=html;iL.innerHTML=html;
+}
+function updateOneThingDisplay(){
+  const task=state.tasks.find(t=>t.id===state.currentTaskId);
+  const avg=task?getAvgTime(task):null;
+  const hintTxt=avg?`Usually takes you ~${avg} min`:(task?`Session: ${state.settings.duration} min`:'');
+  let microTxt=task?.micro?'→ '+task.micro:'';
+  if(task?.boring&&task?.pairing)microTxt=(task.micro?microTxt+' · ':'')+('☕ '+task.pairing);
+  const nameTxt=task?task.name:'Add a task to begin';
+  const hasTask=!!task;
+
+  [['p-task-name',nameTxt,'compact-name'+(hasTask?'':' empty')],
+   ['big-task-name',nameTxt,'ambient-task-name'+(hasTask?'':' empty')]].forEach(([id,v,c])=>{
+    const el=document.getElementById(id);if(el){el.textContent=v;el.className=c;}
+  });
+  [['p-micro',microTxt,'compact-micro'],['p-hint',hintTxt,'compact-hint'],
+   ['big-micro',microTxt,'ambient-micro'],['big-hint',hintTxt,'ambient-hint']].forEach(([id,v,c])=>{
+    const el=document.getElementById(id);if(el){el.textContent=v;if(c)el.className=c;}
+  });
+  ['p-too-big-btn','big-too-big-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hasTask?'inline-block':'none';});
+  ['p-boring-btn','big-boring-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hasTask?'inline-block':'none';});
+
+  const running=state.timerRunning;
+  ['p-btn-start','big-btn-start'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    if(running){el.style.display='none';}
+    else{el.style.display='block';el.disabled=!hasTask;el.textContent=hasTask?'3 – 2 – 1  Start':'No task selected';}
+  });
+  ['p-btn-done','big-btn-done'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=running?'block':'none';});
+  ['compact-card','ambient-card'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',running);});
+}
+function getAvgTime(task){
+  if(!task.completions?.length)return null;
+  const a=Math.round(task.completions.reduce((s,c)=>s+(c.seconds||0),0)/task.completions.length/60);
+  return a>0?a:null;
+}
+
+// ══ DECOMPOSE ══
+function openDecompose(){
+  ['sub1','sub2','sub3'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-decompose').classList.add('visible');
+  setTimeout(()=>document.getElementById('sub1').focus(),120);
+}
+function saveDecompose(){
+  const vals=['sub1','sub2','sub3'].map(id=>document.getElementById(id).value.trim()).filter(Boolean);
+  if(!vals.length){closeModal('modal-decompose');return;}
+  const pi=state.tasks.findIndex(t=>t.id===state.currentTaskId);
+  const newT=vals.map((v,i)=>({id:(Date.now()+i).toString(),name:v,micro:'',createdAt:Date.now(),completions:[],boring:false,pairing:'',twoMin:false}));
+  state.tasks.splice(pi,1,...newT);state.currentTaskId=newT[0].id;
+  save();closeModal('modal-decompose');renderAll();clearTimerState();showToast('Broken into '+newT.length+' steps');
+}
+
+// ══ INITIATION ══
+function initiateStart(){
+  const task=state.tasks.find(t=>t.id===state.currentTaskId);if(!task)return;
+  const n=parseInt(state.settings.countdown)||3;
+  document.getElementById('cd-task').textContent=task.twoMin?'2-minute commitment: '+task.name:task.name;
+  document.getElementById('cd-number').textContent=n;
+  document.getElementById('cd-micro').textContent=task.micro?'→ '+task.micro:"You've got this.";
+  document.getElementById('cd-pairing').textContent=task.boring&&task.pairing?'☕ '+task.pairing:'';
+  document.getElementById('countdown-overlay').classList.add('visible');
+  playSound('tick');
+  let count=n;
+  state.countdownInterval=setInterval(()=>{
+    count--;const el=document.getElementById('cd-number');
+    if(count<=0){
+      clearInterval(state.countdownInterval);state.countdownInterval=null;
+      document.getElementById('countdown-overlay').classList.remove('visible');
+      playSound('start');startTimer(task.twoMin?2:null);
+    }else{
+      el.textContent=count;el.classList.remove('pulse');void el.offsetWidth;el.classList.add('pulse');
+      playSound('tick');
+    }
+  },1000);
+}
+function cancelCountdown(){
+  if(state.countdownInterval){clearInterval(state.countdownInterval);state.countdownInterval=null;}
+  document.getElementById('countdown-overlay').classList.remove('visible');
+}
+
+// ══ TIMER ══
+function startTimer(overrideMins){
+  const mins=overrideMins||state.settings.duration;
+  state.timerSeconds=mins*60;state.timerRunning=true;
+  updateTimerDisplay();state.timerInterval=setInterval(tickTimer,1000);updateOneThingDisplay();
+}
+function tickTimer(){
+  if(state.timerSeconds>0){state.timerSeconds--;updateTimerDisplay();}
+  else{clearInterval(state.timerInterval);state.timerRunning=false;state.timerInterval=null;updateOneThingDisplay();showToast('Session done — mark complete or keep going.');}
+}
+function updateTimerDisplay(){
+  const total=state.settings.duration*60;
+  const pct=Math.min((total-state.timerSeconds)/total,1);
+  const m=Math.floor(state.timerSeconds/60),s=state.timerSeconds%60;
+  const timeStr=state.timerSeconds>0?`${m}:${s.toString().padStart(2,'0')}`:'✓';
+
+  // Colour: starts cool teal → shifts warm amber past 75%
+  const mix=Math.max(0,(pct-.5)/.25);
+  const col=pct<.5?'#60f0d0':pct<.75?`rgb(${Math.round(96+144*((pct-.5)/.25))},${Math.round(240)},${Math.round(208-208*((pct-.5)/.25))})`:`rgb(240,${Math.round(240-80*Math.min(mix,1))},${Math.round(96-96*Math.min(mix,1))})`;
+
+  // Phone ring — fills forward
+  const srf=document.getElementById('small-ring-fill');
+  if(srf){const c=2*Math.PI*21;srf.style.strokeDashoffset=(c-pct*c).toFixed(1);srf.style.stroke=col;}
+  const srl=document.getElementById('small-ring-label');
+  if(srl)srl.textContent=state.showTime?timeStr:(state.timerRunning?'▶':'--');
+
+  // iPad vessel — fills forward
+  const bvf=document.getElementById('big-vessel-fill');
+  if(bvf){const c=2*Math.PI*78;bvf.style.strokeDashoffset=(c-pct*c).toFixed(1);bvf.style.stroke=col;}
+  const bvs=document.getElementById('big-vessel-status');
+  if(bvs)bvs.textContent=pct>.75?'wrapping up':pct>0?'in session':'ready';
+  const bvt=document.getElementById('big-vessel-time');
+  if(bvt){bvt.textContent=state.showTime?timeStr:'tap for time';bvt.className='vessel-time'+(state.showTime?' shown':'');}
+}
+function toggleTimeDisplay(){state.showTime=!state.showTime;updateTimerDisplay();}
+function clearTimerState(){
+  if(state.timerInterval){clearInterval(state.timerInterval);state.timerInterval=null;}
+  state.timerRunning=false;state.timerSeconds=0;
+  const srf=document.getElementById('small-ring-fill');if(srf){srf.style.strokeDashoffset='131.9';srf.style.stroke='var(--teal)';}
+  const srl=document.getElementById('small-ring-label');if(srl)srl.textContent='--';
+  const bvf=document.getElementById('big-vessel-fill');if(bvf){bvf.style.strokeDashoffset='490.1';bvf.style.stroke='var(--teal)';}
+  const bvs=document.getElementById('big-vessel-status');if(bvs)bvs.textContent='ready';
+  const bvt=document.getElementById('big-vessel-time');if(bvt){bvt.textContent='--:--';bvt.className='vessel-time';}
+  updateOneThingDisplay();
+}
+
+// ══ REWARD ══
+let _rt=null;
+function showReward(taskName,remaining,jackpot){
+  const r=pickReward(jackpot);
+  const tier=jackpot?'jackpot':RP.uncommon.includes(r)?'uncommon':RP.rare.includes(r)?'rare':'common';
+  playSound(tier);
+  document.getElementById('rf-icon').textContent=r.icon;
+  document.getElementById('rf-text').textContent=r.text;
+  document.getElementById('rf-text').style.color=r.tc||'#0f0f0f';
+  document.getElementById('rf-flavor').textContent=r.flavor||'';
+  document.getElementById('rf-flavor').style.color=r.tc==='#fff'?'rgba(255,255,255,.65)':'rgba(15,15,15,.6)';
+  document.getElementById('rf-sub').textContent=remaining>0?`${remaining} task${remaining!==1?'s':''} left`:'Queue clear.';
+  document.getElementById('rf-sub').style.color=r.tc==='#fff'?'rgba(255,255,255,.4)':'rgba(15,15,15,.4)';
+  document.getElementById('rf-bg').style.background=r.bg;
+  const rays=document.getElementById('rf-rays');
+  if(jackpot&&rays){rays.style.display='block';rays.innerHTML='';for(let i=0;i<12;i++){const d=document.createElement('div');d.className='rf-ray';d.style.transform=`translateX(-50%) rotate(${i*30}deg)`;d.style.animationDelay=`${i*.08}s`;rays.appendChild(d);}}
+  else if(rays)rays.style.display='none';
+  document.getElementById('reward-flash').classList.add('visible');
+  if(_rt)clearTimeout(_rt);
+  _rt=setTimeout(()=>{document.getElementById('reward-flash').classList.remove('visible');renderAll();},jackpot?2200:1500);
+}
+
+// ══ BODY CHECK ══
+function scheduleBodyCheck(){
+  if(state.bodyCheckTimer)clearTimeout(state.bodyCheckTimer);
+  state.bodyCheckTimer=setTimeout(showBodyCheck,(parseInt(state.settings.bodycheck)||45)*60000);
+}
+function showBodyCheck(){document.getElementById('body-check-bar').classList.remove('hidden');scheduleBodyCheck();}
+function dismissBodyCheck(e){e.stopPropagation();document.getElementById('body-check-bar').classList.add('hidden');showToast('Nice. Keep going.');}
+
+// ══ MODALS ══
+function openAddModal(){
+  document.getElementById('task-input').value='';document.getElementById('micro-input').value='';
+  const bt=document.getElementById('boring-toggle');if(bt)bt.checked=false;
+  document.getElementById('boring-extras').style.display='none';
+  const pi=document.getElementById('pairing-input');if(pi)pi.value='';
+  document.getElementById('modal-add').dataset.twoMin='0';
+  document.getElementById('modal-add').classList.add('visible');
+  setTimeout(()=>document.getElementById('task-input').focus(),120);
+}
+function closeModal(id){document.getElementById(id).classList.remove('visible');}
+function handleBackdropClick(id,e){if(e.target===document.getElementById(id))closeModal(id);}
+
+// ══ SCIENCE ══
+function toggleScience(id){const el=document.getElementById(id);if(el)el.classList.toggle('open');}
+
+// ══ HYPERFOCUS ══
+function startHyperfocusFlow(){
+  state.hfPhase=0;
+  document.getElementById('hf-task-name').value='';document.getElementById('hf-curiosity').value='';
+  document.querySelectorAll('.hf-check-item').forEach(el=>el.classList.remove('checked'));
+  showPhase(1);showScreen('hyperfocus');
+}
+function showPhase(n){
+  [1,2,3,4].forEach(i=>{const el=document.getElementById('hf-phase-'+i);if(el)el.style.display=i===n?'block':'none';});
+  state.hfPhase=n;
+  const sc=document.getElementById('hf-scroll');if(sc)sc.scrollTo({top:0,behavior:'smooth'});
+}
+function hfNext(from){
+  if(from===1){if(!document.getElementById('hf-task-name').value.trim()){document.getElementById('hf-task-name').focus();return;}showPhase(2);}
+  else if(from===2){
+    showPhase(3);
+    document.getElementById('hf-lock-display').textContent=fmt((parseInt(state.settings.onramp)||10)*60);
+    document.getElementById('hf-lock-fill').style.width='0%';
+    document.getElementById('hf-lock-label').textContent='ready to begin';
+    const btn=document.getElementById('hf-lock-btn');btn.disabled=false;btn.textContent='Begin on-ramp →';
+  }
+}
+function toggleHfCheck(el){el.classList.toggle('checked');}
+function startOnRamp(){
+  const total=(parseInt(state.settings.onramp)||10)*60;state.hfLockSeconds=total;
+  document.getElementById('hf-lock-btn').disabled=true;
+  document.getElementById('hf-lock-label').textContent='stay with it — no switching';
+  if(state.hfLockInterval)clearInterval(state.hfLockInterval);
+  state.hfLockInterval=setInterval(()=>{
+    state.hfLockSeconds--;
+    document.getElementById('hf-lock-display').textContent=fmt(state.hfLockSeconds);
+    document.getElementById('hf-lock-fill').style.width=((total-state.hfLockSeconds)/total*100).toFixed(0)+'%';
+    if(state.hfLockSeconds<=0){clearInterval(state.hfLockInterval);state.hfLockInterval=null;enterDeepWork();}
+  },1000);
+}
+function enterDeepWork(){
+  const total=(parseInt(state.settings.deepwork)||90)*60;state.hfDeepSeconds=total;
+  const tn=document.getElementById('hf-task-name').value.trim();
+  const cu=document.getElementById('hf-curiosity').value.trim();
+  document.getElementById('hf-deep-task-label').textContent=tn||'In flow.';
+  document.getElementById('hf-curiosity-reminder').textContent=cu?'→ '+cu:'Stay with the puzzle.';
+  document.getElementById('hf-deep-display').textContent=fmt(total);
+  document.getElementById('hf-deep-fill').style.width='0%';
+  showPhase(4);
+  if(state.hfDeepInterval)clearInterval(state.hfDeepInterval);
+  state.hfDeepInterval=setInterval(()=>{
+    state.hfDeepSeconds--;
+    document.getElementById('hf-deep-display').textContent=fmt(state.hfDeepSeconds);
+    document.getElementById('hf-deep-fill').style.width=((total-state.hfDeepSeconds)/total*100).toFixed(0)+'%';
+    if(state.hfDeepSeconds===300)showToast('5 min left — begin wrapping up');
+    if(state.hfDeepSeconds<=0){clearInterval(state.hfDeepInterval);state.hfDeepInterval=null;showToast('Deep work session complete. Outstanding.');}
+  },1000);
+}
+function endDeepWork(done){
+  if(state.hfDeepInterval){clearInterval(state.hfDeepInterval);state.hfDeepInterval=null;}
+  if(state.hfLockInterval){clearInterval(state.hfLockInterval);state.hfLockInterval=null;}
+  stopBinaural();
+  if(done){
+    const name=document.getElementById('hf-task-name').value.trim()||'Deep work session';
+    const elapsed=((parseInt(state.settings.deepwork)||90)*60)-state.hfDeepSeconds;
+    state.completedToday.push({name,at:Date.now(),seconds:elapsed});
+    state.totalCompleted++;save();renderLog();showEnergyLog(true);
+    showReward(name,state.tasks.length,state.totalCompleted%JACKPOT_EVERY===0);
+  }
+  showScreen('main');renderAll();
+}
+function exitHyperfocus(){
+  if(state.hfLockInterval){clearInterval(state.hfLockInterval);state.hfLockInterval=null;}
+  if(state.hfDeepInterval){clearInterval(state.hfDeepInterval);state.hfDeepInterval=null;}
+  stopBinaural();showScreen('main');
+}
+
+// ══ BINAURAL ══
+let _bac=null;
+function toggleBinaural(){state.binauralOn?stopBinaural():startBinaural();}
+function startBinaural(){
+  try{
+    _bac=new(window.AudioContext||window.webkitAudioContext)();
+    const g=_bac.createGain();g.gain.value=.06;g.connect(_bac.destination);
+    const oL=_bac.createOscillator(),pL=_bac.createStereoPanner();oL.frequency.value=200;oL.type='sine';pL.pan.value=-1;oL.connect(pL);pL.connect(g);
+    const oR=_bac.createOscillator(),pR=_bac.createStereoPanner();oR.frequency.value=240;oR.type='sine';pR.pan.value=1;oR.connect(pR);pR.connect(g);
+    oL.start();oR.start();state.binauralNodes={oL,oR};state.binauralOn=true;
+    const btn=document.getElementById('binaural-toggle-btn');if(btn){btn.textContent='on ♪';btn.style.color='var(--accent)';btn.style.borderColor='var(--accent-muted)';}
+    showToast('40Hz binaural on — use headphones');
+  }catch(e){showToast('Audio unavailable on this device');}
+}
+function stopBinaural(){
+  if(state.binauralNodes){try{state.binauralNodes.oL.stop();state.binauralNodes.oR.stop();}catch(e){}state.binauralNodes=null;}
+  if(_bac){try{_bac.close();}catch(e){}_bac=null;}
+  state.binauralOn=false;
+  const btn=document.getElementById('binaural-toggle-btn');if(btn){btn.textContent='off';btn.style.color='';btn.style.borderColor='';}
+}
+
+// ══ SETTINGS ══
+function applySettings(){
+  const s=state.settings;
+  ['duration','countdown','bodycheck','onramp','deepwork','sounds'].forEach(k=>{const el=document.getElementById('setting-'+k);if(el)el.value=s[k];});
+}
+function saveSetting(k,v){state.settings[k]=isNaN(v)||k==='sounds'?v:Number(v);save();}
+function confirmClearData(){if(confirm('Clear all tasks and reset?')){localStorage.removeItem(KEY);location.reload();}}
+
+// ══ UTILS ══
+let _tt=null;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');if(_tt)clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2800);}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmt(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;}
+
+window.addEventListener('pagehide',save);
+window.addEventListener('beforeunload',save);
+</script>
+</body>
+</html>
